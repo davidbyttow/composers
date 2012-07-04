@@ -1,0 +1,32 @@
+{
+  "name" : "composers",
+  "version" : "0.1.0",
+  "description" : "Framework for abstracting nuances of asynchronous coding.",
+  "keywords" : ["node", "composer", "future", "promise", "graph", "scope", "async"],
+  "repository" : {
+    "type" : "git",
+    "url" : "http://github.com/Obvious/composers.git"
+  },
+  "homepage" : "https://github.com/Obvious/composers",
+  "author" : {
+    "name" : "David Byttow",
+    "email" : "david@obvious.com",
+    "url" : "https://github.com/guitardave24"
+  },
+  "licenses": [{
+    "type": "Apache 2.0",
+    "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+  }],
+  "author": {
+    "name": "David Byttow",
+    "email": "guitardave@gmail.com",
+    "url": "http://twitter.com/guitardave24"
+  },
+  "main" : "./lib/composers.js",
+  "directories": {
+    "lib": "./lib"
+  },
+  "dependencies": {
+    "q": "*"
+  }
+}
