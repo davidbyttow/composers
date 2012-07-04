@@ -1,4 +1,5 @@
 # Composers: An asynchronous programming framework _(BETA)_
+(aka, stop torturing yourself with callbacks and chaining)
 
 ## Overview
 
@@ -28,38 +29,53 @@ A     B
 ```
 
 
-A simple, callback based example may look something like this (with function names gratuitously named for clarity):
+A contrived, callback-based example may look something like this:
 
 ```js
-function getA() { return 'A' }
+// NOT composer code.
 
-function getFutureB(next) {
-  setTimeout(function () {
-    next(null, 'B')
-  }, 1000)
+function getUserName(user) {
+  return user.name
 }
 
-function getC() { return 'C' }
+function getUserEmail(user) {
+  return user.email
+}
 
-function getFutureAB(next) {
-  var a = getA()
-  getFutureB(function (err, b) {
-    if (err) return next(err)
-    next(null, a + b)
+function getUser(id, callback) {
+  userService.getUser(id, function (err, user) {
+    return callback(err, user)
   })
 }
 
-function getFutureABC(next) {
-  var c = getC()
-  getFutureAB(function (err, ab) {
-    if (err) return next(err)
-    next(null, ab + c)
+function pokeUser(id, callback) {
+  getUser(id, function (err, user) {
+    if (err) {
+      // Do something with error?
+      console.log(err)
+      return callback(err)
+    }
+    var name = getUserName(user)
+    var email = getUserEmail(user)
+
+    pokeService.poke(name, email, function (err, result) {
+      if (err) {
+        return callback(err)
+      }
+      callback(undefined, result.success)
+    })
   })
 }
 
-getFutureABC(function (err, abc) {
-  if (err) throw err
-  console.log('A+B+C+:', abc)
+pokeUser(userId, function(err, result) {
+  if (err) {
+    console.log(err)
+    return
+  }
+
+  if (result) {
+    // yay
+  }
 })
 ```
 
@@ -69,49 +85,86 @@ The code above is clear to those familiar with Node's paradigms. However, it is 
 With composers, the same can be written as:
 
 ```js
-registry.defineNode().outputs('A').with(function () {
-  return 'A'
-}).build()
+// Assuming services return promises, and do not use callbacks. Though Q makes
+// it simple to create a promise out of a callback.
 
-registry.defineNode().outputs('B').with(function () {
-  var d = Q.defer()
-  setTimeout(function () {
-    d.resolve('B')
-  }, 1000)
-  return d
-}).build()
-
-registry.defineNode().given('A', 'B').outputs('A+B').with(function (a, b) {
-  return a.get() + b.get()
-}).build()
-
-registry.defineNode().outputs('C').with(function () {
-  return 'C'
+registry.defineNode().given('user-id').outputs('user').with(function(userId) {
+  return userService.getUser(userId.get())
 })
+.build()
 
-registry.defineNode().given('A+B', 'C').outputs('A+B+C').with(function (ab, c) {
-  return ab.get() + c.get()
+registry.defineNode().given('user').outputs('name').with(function(user) {
+  return user.get().getName()
 })
+.build()
 
-scope.createGraph('A+B+C').start().then(function (abc) {
-  console.log('A+B+C+:', abc)
+registry.defineNode().given('user').outputs('email').with(function(user) {
+  return user.get().getEmail()
+})
+.build()
+
+registry.defineNode().given('name', 'email').outputs('poke-result')
+    .with(function(name, email) {
+      return pokeService.poke(name.get(), email.get())
+    })
+    .build()
+
+registry.defineNode().given('poke-user').outputs('poke-result')
+    .with(function(result) {
+      return result.get().success
+    })
+    .build()
+
+scope.createGraph('poke-user').give('user-id', user).then(function (result) {
+  if (result.get()) {
+    // yay
+  }
 }, function (err) {
-  console.log('Error: ', err)
+  console.log(err)
 })
 ```
 
 Few things to note from the comparison example above:
-* Handlers can return values or promises
-* Callbacks are non-existent
+* Handlers can return values, promises, *or* deferreds from the Q library.
+* Callbacks are non-existent in logical nodes.
+* Exceptions propagate as expected.
 * Values are evaluated from the leaves up, that is, the call path cannot be followed sequentially like the callback method.
 
 _Oh but why so verbose??_ you ask...
-Well... you can always wrap and simplify it to your liking. :-)
+Well... you can always wrap and simplify it to your liking, I leave that up to you. :-)
+
+```js
+node('user-id', 'user', function (userId) {
+  return userService.getUser(userId.get())
+})
+
+node('user', 'name', function (user) {
+  return user.get().getName()
+})
+
+node('user', 'email', function (user) {
+  return user.get().getName()
+})
+
+node(['name', 'email'], 'poke-result', function (name, email) {
+  return pokeService.poke(name.get(), email.get())
+})
+
+node('poke-user', 'poke-result', function (result) {
+  return result.get().success
+})
+
+compose('poke-user', {'user-id': userId}).then(function (result) {
+  if (result) {
+    // yay
+  }
+})
+```
 
 # Concepts
 
-The basic concepts in composers are:
-* Nodes: Logically produce a single output value, given some set of inputs.
+The basic concepts of composers are:
+* Nodes: Logically composes a set of inputs into a single output value.
 * Graphs: Compute a single output value by dynamically constructing a dependency graph of nodes.
 * Scopes: Execution contexts for graphs, scopes cache graph node outputs.
 
@@ -147,7 +200,7 @@ nodeunit tests/composers_test.js
 
 ## Dependencies
 
-Composers requires the [Q Framework](https://github.com/kriskowal/q/) for promises.
+Composers requires the [Q framework](https://github.com/kriskowal/q/) for promises.
 
 
 ## Detailed Design
@@ -395,7 +448,7 @@ Starts the graph for evaluation, can only be started once. Returns a promised re
 Adds a particular node into the graph for evaluation. Typically this is used when a given output key relies on an input that is not implicitly provided by another node. For example:
 
 ```js
-scope.newGraph('search-results').give('search-query', query).start()
+scope.createGraph('search-results').give('search-query', query).start()
     .then(function (results) {
       // Do something with the results.
     })
