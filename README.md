@@ -18,18 +18,25 @@ Some cons are:
 * “Thinking in composers” has a bit of a learning curve from traditional callback patterns
 * More verbose in some cases
 
-Let's take a contrived, simple example of a dependency graph. Here, we are interested in the value of key A+B+C, which has multiple dependencies, some of which may be latent, remote calls.
+Let's take a contrived, simple example of a dependency graph. Here, we are interested in the result of poking a user by id, which has multiple dependencies, some of which may be latent, remote calls.
 
 ```
-A     B
- \   /
-  A+B   C
-    \  /
-    A+B+C
+poke    userService       pokeService
+  |
+  ------> getUser(userId)
+            |
+            |
+  <------  user
+  |
+  |
+  ------------------------> pokeUser(user.name, user.email)
+                              |
+                              |
+  <------------------------- result
+  
 ```
 
-
-A contrived, callback-based example may look something like this:
+A simple, callback-based example may look something like this:
 
 ```js
 // NOT composer code.
@@ -82,7 +89,22 @@ pokeUser(userId, function(err, result) {
 
 The code above is clear to those familiar with Node's paradigms. However, it is prone-to-error, difficult to maintain and provides little information out-of-the-box during the course of its execution.
 
-With composers, the same can be written as:
+Another way to think of this is as a dependency graph. For example:
+```
+   user-id
+     |
+    user
+   /    \
+name   email
+   \    /
+ poke-result
+     |
+  poke-user
+```
+
+In this example, poking a user depends on the result of poking a user. In order to poke a user, we need the user's name and email address. The user's name and email address depends on the user, and the user depends on a user id.
+
+The variable here is the user id, which is supplied by a caller. This is how we think with composers. So, the same can be written as:
 
 ```js
 // Assuming services return promises, and do not use callbacks. Though Q makes
