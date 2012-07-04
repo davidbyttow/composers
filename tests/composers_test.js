@@ -12,7 +12,9 @@ var composers = require('../lib/composers')
   , Registry = composers.Registry
   , Scope = composers.Scope
   , testCase = nodeunit.testCase
+  , trace = require('../lib/trace')
 
+var OUTPUT_GRAPHS = false
 
 var registry
 var scope
@@ -22,7 +24,14 @@ function node() {
 }
 
 function compose(key) {
-  return scope.createGraph(key).start()
+  var graph = scope.createGraph(key)
+  return graph.start(OUTPUT_GRAPHS).then(function (value) {
+    vizualize(graph)
+    return value
+  }, function (err) {
+    vizualize(graph)
+    throw err
+  })
 }
 
 function composeMany(keys) {
@@ -39,6 +48,15 @@ function delayed(millis, fn) {
     d.resolve(fn())
   }, millis)
   return d
+}
+
+function vizualize(graph) {
+  var g = trace.vizualize(graph.getTraceId())
+  if (!g) {
+    return
+  }
+  g.setGraphVizPath('./')
+  g.output('png', 'graph-' + graph.getOutputKey() + '.png')
 }
 
 module.exports = testCase({
@@ -76,12 +94,19 @@ module.exports = testCase({
       return ab.get() + c.get()
     }).build()
 
-    Q.all(composeMany(['A', 'B', 'C', 'A+B'])).spread(function (a, b, c, ab) {
-      test.equal(a, 'A')
-      test.equal(b, 'B')
-      test.equal(c, 'C')
-      test.equal(ab, 'AB')
-      test.done()
+    var graph = scope.createGraph('A+B+C')
+    graph.start().then(function () {
+      vizualize(graph)
+      Q.all(composeMany(['A', 'B', 'C', 'A+B', 'A+B+C'])).spread(function (a, b, c, ab, abc) {
+        test.equal(a, 'A')
+        test.equal(b, 'B')
+        test.equal(c, 'C')
+        test.equal(ab, 'AB')
+        test.equal(abc, 'ABC')
+        test.done()
+      })
+    }).fail(function (err) {
+      console.log(err)
     })
   },
 
@@ -204,12 +229,40 @@ module.exports = testCase({
   },
 
   testError: function (test) {
-    node().outputs('error').with(function () {
+    node().outputs('ok').with(function () {
+      return 'ok'
+    }).build()
+
+    node().given('ok').outputs('not-ok').with(function () {
+      throw new Error('wtf man')
+    }).build()
+
+    node().given('not-ok').outputs('error').with(function () {
       throw new Error('wtf man')
     }).build()
 
     compose('error').then(undefined, function (err) {
       test.equal(err.message, 'wtf man')
+      test.done()
+    })
+  },
+
+  testError: function (test) {
+    node().outputs('ok').with(function () {
+      return 'ok'
+    }).build()
+
+    node().given('ok').outputs('not-ok').with(function () {
+      throw new Error('wtf man')
+    }).build()
+
+    node().given('ok', 'not-ok').outputs('ignored').with(function (ok, notOk) {
+      // Do nothing with notOk.
+      return ok
+    }).build()
+
+    compose('ignored').then(function (value) {
+      test.ok(value)
       test.done()
     })
   },
