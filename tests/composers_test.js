@@ -169,21 +169,6 @@ module.exports = testCase({
     })
   },
 
-  testError: function (test) {
-    node().outputs('error').with(function () {
-      throw new Error('oops')
-    }).build()
-
-    node().given('error').outputs('errorhandler').with(function (e) {
-      e.get()  // throws error
-    }).build()
-
-    compose('errorhandler').then(undefined, function (err) {
-      test.equals(err.message, 'oops')
-      test.done()
-    })
-  },
-
   testChaining: function (test) {
     node().outputs('delayed').with(function () {
       return delayed(200, function () {
@@ -247,7 +232,7 @@ module.exports = testCase({
     })
   },
 
-  testError: function (test) {
+  testErrorIgnored: function (test) {
     node().outputs('ok').with(function () {
       return 'ok'
     }).build()
@@ -315,8 +300,6 @@ module.exports = testCase({
       test.equals(names.uppercased, 'DAVID BYTTOW')
       test.equals(names.underscored, 'david_byttow')
       test.done()
-    }).fail(function (err) {
-      console.log(err)
     })
   }
 })
