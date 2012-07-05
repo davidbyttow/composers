@@ -14,7 +14,7 @@ var composers = require('../lib/composers')
   , testCase = nodeunit.testCase
   , trace = require('../lib/trace')
 
-var OUTPUT_GRAPHS = true
+var OUTPUT_GRAPHS = false
 
 var registry
 var scope
