@@ -14,7 +14,7 @@ var composers = require('../lib/composers')
   , testCase = nodeunit.testCase
   , trace = require('../lib/trace')
 
-var OUTPUT_GRAPHS = false
+var OUTPUT_GRAPHS = true
 
 var registry
 var scope
@@ -293,11 +293,30 @@ module.exports = testCase({
       return delayed(100, function () {
         return name.get().replace(' ', '_')
       })
-    }).build()
+    }).notCacheable().build()
 
-    compose('underscored').then(function (name) {
-      test.equals(name, 'david_byttow')
+    node().given('lowercased').outputs('uppercased').with(function (name) {
+      return delayed(200, function () {
+        return name.get().toUpperCase()
+      })
+    }).notCacheable().build()
+
+    node().given('lowercased', 'uppercased', 'underscored').outputs('names').with(
+        function (lowercased, uppercased, underscored) {
+          return {
+              lowercased: lowercased.get()
+            , uppercased: uppercased.get()
+            , underscored: underscored.get()
+          }
+        }).build()
+
+    compose('names').then(function (names) {
+      test.equals(names.lowercased, 'david byttow')
+      test.equals(names.uppercased, 'DAVID BYTTOW')
+      test.equals(names.underscored, 'david_byttow')
       test.done()
+    }).fail(function (err) {
+      console.log(err)
     })
   }
 })
