@@ -1,6 +1,6 @@
 {
   "name" : "composers",
-  "version" : "0.1.0",
+  "version" : "0.1.1",
   "description" : "Framework for abstracting nuances of asynchronous coding.",
   "keywords" : ["node", "composer", "future", "promise", "graph", "scope", "async"],
   "repository" : {

@@ -189,18 +189,21 @@ module.exports = testCase({
   },
 
   testSeeding: function (test) {
-    node().given('name').outputs('upper-name').with(function (foo) {
-      return foo.get().toUpperCase()
+    // This also tests that we support arrays in given.
+    node().given(['name', 'number']).outputs('upper-name').with(function (name, number) {
+      return name.get().toUpperCase() + number.get()
     }).build()
 
+    var number = 42
     var childScope = new Scope(registry, scope)
     childScope.seed('name', 'David')
+    childScope.seed('number', function () { return number; })
     childScope.enter()
     childScope.createGraph('upper-name').start().then(function (name) {
       childScope.exit()
-      test.equal(name, 'DAVID')
+      test.equal(name, 'DAVID42')
       test.done()
-    })
+    }).end()
   },
 
   testUnknownNodeError: function (test) {
