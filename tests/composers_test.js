@@ -73,6 +73,9 @@ module.exports = testCase({
     done()
   },
 
+  /**
+   * Tests that graph dependencies work properly.
+   */
   testDependencies: function (test) {
     node().outputs('A').with(function () {
       return 'A'
@@ -110,6 +113,9 @@ module.exports = testCase({
     })
   },
 
+  /**
+   * Tests that explicit input binding works.
+   */
   testExplicits: function (test) {
     node().outputs('A').with(function () {
       return 'A'
@@ -129,6 +135,9 @@ module.exports = testCase({
     })
   },
 
+  /**
+   * Tests child scopes and that nodes are run with the given context.
+   */
   testScopeContext: function (test) {
     var childScope = new Scope(registry, scope)
     var context = {
@@ -147,6 +156,9 @@ module.exports = testCase({
     })
   },
 
+  /**
+   * Tests that nodes are cached by default.
+   */
   testCaching: function (test) {
     node().outputs('random').with(function () {
       return Math.random()
@@ -158,6 +170,9 @@ module.exports = testCase({
     })
   },
 
+  /**
+   * Tests that nodes caching can be disabled.
+   */
   testNotCacheable: function (test) {
     node().outputs('random').with(function () {
       return Math.random()
@@ -169,7 +184,10 @@ module.exports = testCase({
     })
   },
 
-  testChaining: function (test) {
+  /**
+   * Tests that explicit input bindings can be promises.
+   */
+  testPromiseBindings: function (test) {
     node().outputs('delayed').with(function () {
       return delayed(200, function () {
         return 'foo'
@@ -188,6 +206,9 @@ module.exports = testCase({
         })
   },
 
+  /**
+   * Tests that scope seeding works.
+   */
   testSeeding: function (test) {
     // This also tests that we support arrays in given.
     node().given(['name', 'number']).outputs('upper-name').with(function (name, number) {
@@ -206,6 +227,53 @@ module.exports = testCase({
     }).end()
   },
 
+  /**
+   * Tests that graph callbacks work.
+   */
+  testGraphCallback: function (test) {
+    node().outputs('ok').with(function () {
+      return delayed(200, function () {
+        return 'ok'
+      })
+    }).build()
+
+    node().outputs('not-ok').with(function () {
+      throw new Error('not-ok')
+    }).build()
+
+    scope.createGraph('ok').callback(function (err, ok) {
+      test.ok(!err)
+      test.equal(ok, 'ok')
+
+      scope.createGraph('not-ok').callback(function (err) {
+        test.equal('not-ok', err.message)
+        test.done()
+      })
+    })
+  },
+
+  /**
+   * Tests that subsequent calls to Input.get() are cached.
+   */
+  testInputCaching: function (test) {
+    node().outputs('value').given('counter').with(function (counter) {
+      return counter.get() + '' + counter.get() + '' + counter.get()
+    }).build()
+
+    var counter = 0;
+    var childScope = new Scope(registry, scope)
+    childScope.seed('counter', function () { return ++counter; })
+    childScope.enter()
+    childScope.createGraph('value').start().then(function (value) {
+      childScope.exit()
+      test.equal(value, '111')
+      test.done()
+    }).end()
+  },
+
+  /**
+   * Tests that attempting to bind to an unknown node fails.
+   */
   testUnknownNodeError: function (test) {
     node().given('unknown').outputs('nothing').with(function () {})
     try {
@@ -216,6 +284,9 @@ module.exports = testCase({
     }
   },
 
+  /**
+   * Tests that errors propagate appropriately.
+   */
   testError: function (test) {
     node().outputs('ok').with(function () {
       return 'ok'
@@ -235,6 +306,9 @@ module.exports = testCase({
     })
   },
 
+  /**
+   * Tests that errors can be ignored.
+   */
   testErrorIgnored: function (test) {
     node().outputs('ok').with(function () {
       return 'ok'
@@ -255,6 +329,9 @@ module.exports = testCase({
     })
   },
 
+  /**
+   * Tests various delays and dependencies.
+   */
   testSimulation: function (test) {
     node().outputs('first-name').with(function () {
       return delayed(20, function () {
