@@ -211,6 +211,61 @@ It's very important to note that developer code will not asynchronously execute 
 
 It can be difficult to think in terms of composers, due to their indirect nature. Notably, all nodes run from the "leaves on up," which can confuse some developers. This is outweighed by the benefits that the model provides.
 
+To aid, here is an example trace output for a given graph trace:
+![Depedency graph](https://github.com/Obvious/composers/blob/master/etc/img/graph-names.png?raw=true)
+
+And here is the test:
+
+```js
+node().outputs('first-name').with(function () {
+  return delayed(20, function () {
+    return 'David'
+  })
+}).build()
+
+node().outputs('last-name').with(function () {
+  return delayed(200, function () {
+    return 'Byttow'
+  })
+}).build()
+
+node().given('first-name', 'last-name').outputs('full-name')
+    .with(function (firstName, lastName) {
+      return firstName.get() + ' ' + lastName.get()
+    }).build()
+
+node().given('full-name').outputs('lowercased').with(function (fullName) {
+  return fullName.get().toLowerCase()
+}).build()
+
+node().given('lowercased').outputs('underscored').with(function (name) {
+  return delayed(100, function () {
+    return name.get().replace(' ', '_')
+  })
+}).notCacheable().build()
+
+node().given('lowercased').outputs('uppercased').with(function (name) {
+  return delayed(200, function () {
+    return name.get().toUpperCase()
+  })
+}).notCacheable().build()
+
+node().given('lowercased', 'uppercased', 'underscored').outputs('names').with(
+    function (lowercased, uppercased, underscored) {
+      return {
+          lowercased: lowercased.get()
+        , uppercased: uppercased.get()
+        , underscored: underscored.get()
+      }
+    }).build()
+
+scope.createGraph('names').then(function (names) {
+  test.equals(names.lowercased, 'david byttow')
+  test.equals(names.uppercased, 'DAVID BYTTOW')
+  test.equals(names.underscored, 'david_byttow')
+  test.done()
+}).end()
+```
 
 # Using Composers
 
