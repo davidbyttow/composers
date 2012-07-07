@@ -110,6 +110,14 @@ The variable here is the user id, which is supplied by a caller. This is how we 
 // Assuming services return promises, and do not use callbacks. Though Q makes
 // it simple to create a promise out of a callback.
 
+var composers = require('composers')
+  , registry = composers.Registry
+  , scope = composers.Scope
+
+// Setup
+
+var registry = new Registry()
+
 registry.defineNode().given('user-id').outputs('user').with(function(userId) {
   return userService.getUser(userId.get())
 })
@@ -136,6 +144,11 @@ registry.defineNode().given('poke-user').outputs('poke-result')
       return result.get().success
     })
     .build()
+
+// Runtime
+
+var scope = new Scope(registry)
+scope.enter()
 
 scope.createGraph('poke-user').give('user-id', user).then(function (result) {
   if (result.get()) {
