@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/Obvious/composers.png)](http://travis-ci.org/Obvious/composers)
 # Composers: An asynchronous programming framework _(BETA)_
 (aka, stop torturing yourself with callbacks and chaining)
 
